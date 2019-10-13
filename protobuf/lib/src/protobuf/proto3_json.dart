@@ -39,7 +39,7 @@ Object _writeToProto3Json(_FieldSet fs, TypeRegistry typeRegistry) {
       return _writeToProto3Json(
           (fieldValue as GeneratedMessage)._fieldSet, typeRegistry);
     } else if (_isEnum(fieldType)) {
-      return (fieldValue as ProtobufEnum).name;
+      return (fieldValue as ProtobufEnum).value;
     } else {
       int baseType = PbFieldType._baseType(fieldType);
       switch (baseType) {
