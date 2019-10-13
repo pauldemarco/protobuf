@@ -10,6 +10,8 @@ import '../json_parsing_context.dart';
 import '../../../protobuf.dart';
 import '../type_registry.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
+
 abstract class AnyMixin implements GeneratedMessage {
   String get typeUrl;
   set typeUrl(String value);
@@ -193,64 +195,14 @@ abstract class TimestampMixin {
   static Object toProto3JsonHelper(
       GeneratedMessage message, TypeRegistry typeRegistry) {
     TimestampMixin timestamp = message as TimestampMixin;
-    DateTime dateTime = timestamp.toDateTime();
-
-    if (timestamp.nanos < 0) {
-      throw ArgumentError(
-          'Timestamp with negative `nanos`: ${timestamp.nanos}');
-    }
-    if (timestamp.nanos > 999999999) {
-      throw ArgumentError(
-          'Timestamp with `nanos` out of range: ${timestamp.nanos}');
-    }
-    if (dateTime.isBefore(_minTimestamp) || dateTime.isAfter(_maxTimestamp)) {
-      throw ArgumentError('Timestamp Must be from 0001-01-01T00:00:00Z to '
-          '9999-12-31T23:59:59Z inclusive. Was: ${dateTime.toIso8601String()}');
-    }
-
-    // Because [DateTime] doesn't have nano-second precision, we cannot use
-    // dateTime.toIso8601String().
-    String y = '${dateTime.year}'.padLeft(4, '0');
-    String m = _twoDigits(dateTime.month);
-    String d = _twoDigits(dateTime.day);
-    String h = _twoDigits(dateTime.hour);
-    String min = _twoDigits(dateTime.minute);
-    String sec = _twoDigits(dateTime.second);
-    String secFrac = "";
-    if (timestamp.nanos > 0) {
-      secFrac = "." +
-          timestamp.nanos
-              .toString()
-              .padLeft(9, "0")
-              .replaceFirst(finalGroupsOfThreeZeroes, '');
-    }
-    return "$y-$m-${d}T$h:$min:$sec${secFrac}Z";
+    return timestamp.toDateTime();
   }
 
   static void fromProto3JsonHelper(GeneratedMessage message, Object json,
       TypeRegistry typeRegistry, JsonParsingContext context) {
-    if (json is String) {
-      String jsonWithoutFracSec = json;
-      int nanos = 0;
-      Match fracSecsMatch = RegExp(r'\.(\d+)').firstMatch(json);
-      if (fracSecsMatch != null) {
-        String fracSecs = fracSecsMatch[1];
-        if (fracSecs.length > 9) {
-          throw context.parseException(
-              'Timestamp can have at most than 9 decimal digits', json);
-        }
-        nanos = int.parse(fracSecs.padRight(9, '0'));
-        jsonWithoutFracSec =
-            json.replaceRange(fracSecsMatch.start, fracSecsMatch.end, '');
-      }
-      DateTime dateTimeWithoutFractionalSeconds =
-          DateTime.tryParse(jsonWithoutFracSec) ??
-              (throw context.parseException(
-                  'Timestamp not well formatted. ', json));
-
+    if (json is firestore.Timestamp) {
       TimestampMixin timestamp = message as TimestampMixin;
-      setFromDateTime(timestamp, dateTimeWithoutFractionalSeconds);
-      timestamp.nanos = nanos;
+      setFromDateTime(timestamp, json.toDate());
     } else {
       throw context.parseException(
           'Expected timestamp represented as String', json);
